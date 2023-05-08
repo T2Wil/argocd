@@ -1,0 +1,24 @@
+{{- $projects := index .Values "argo-cd" "projects" -}}
+{{- range $projectName, $project := $projects }}
+
+{{- if index $project "enabled" }}
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: {{ $projectName }}
+spec:
+  clusterResourceWhitelist:
+  - group: '*'
+    kind: '*'
+  destinations:
+    {{- range $dest := $project.destinations}}
+    - namespace: {{ $dest.namespace }}
+      server: {{ $dest.server }}
+    {{- end}}
+  orphanedResources:
+    warn: false
+  sourceRepos:
+  - '*'
+{{- end }}
+---
+{{- end }}

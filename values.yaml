@@ -1,0 +1,167 @@
+# Default values for argo.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# Target Git branch where the helm chart is
+argocdTargetBranch: develop
+
+# update dockerConfigJson with base64 encoded pull secret
+# example: 
+# dockerConfigJson: eyJhdXRocyI6eyJteS1yZWdpc3RyeS5leGFtcGxlLmNvbSI6eyJ1c2VybmFtZSI6InlvdXItdXNlcm5hbWUiLCJwYXNzd29yZCI6InlvdXItcGFzc3dvcmQiLCJlbWFpbCI6InlvdXItZW1haWxAZXhhbXBsZS5jb20iLCJhdXRoIjoiZVc5MWNpMTFjMlZ5Ym1GdFpUcDViM1Z5TFhCaGMzTjNiM0prIn19fQ==
+dockerConfigJson: ""
+
+argo-cd:
+  enabled: true
+
+# Add ArgoCD projects you wish to create and allowed them access on namespaces
+# You can create as many as needed
+# example
+  # projects:
+  #   backends:
+  #     enabled: true
+  #     destinations:
+  #       - namespace: backends-dev
+  #         server: https://kubernetes.default.svc
+  #       - namespace: backends-staging
+  #         server: https://kubernetes.default.svc
+  #   frontends:
+  #     enabled: true
+  #     destinations:
+  #       - namespace: frontends-dev
+  #         server: https://kubernetes.default.svc
+  #       - namespace: frontends-staging
+  #         server: https://kubernetes.default.svc
+  projects: {}
+
+# Add ArgoCD applications you wish to create and reference them from their helm chart repository
+
+  # example:
+  # applications:
+    # backend: 
+    #   enabled: true
+    #   helm_chart_git_repo_url: https://github.com/example/backend_helm_charts.git
+    #   helm_chart_git_repo_target_branch: develop
+    #   helm_chart_git_repo_path: stable/backend-1
+    #   project: backends
+    #   deployment_destination_k8s_api_server: https://kubernetes.default.svc
+    #   deployment_destination_namespace: backends-dev
+    #   annotations:
+    #     # add its docker image repository path
+    #     argocd-image-updater.argoproj.io/image-list: auth-engine=ghcr.io/example/backends/backend-1
+    #     # Define which variables in project helm chart that correspond to image name and image tag
+    #     argocd-image-updater.argoproj.io/auth-engine.helm.image-name: image.repository
+    #     argocd-image-updater.argoproj.io/auth-engine.helm.image-tag: image.tag
+    #     # listen only on some specific tags
+    #     # below it listens only on -dev tags
+    #     # ex1: v2.0.0-dev  / ex2: 2.0.1-rc1-dev
+    #     argocd-image-updater.argoproj.io/auth-engine.allow-tags: regexp:^(v[0-9]?[0-9]|[0-9]?[0-9]).[0-9].*-dev$
+    #     # Listen on newly created images 
+    #     argocd-image-updater.argoproj.io/auth-engine.update-strategy: latest 
+    #     # Specify which git branch to update(on helm repo)
+    #     argocd-image-updater.argoproj.io/git-branch: develop
+    #     argocd-image-updater.argoproj.io/write-back-method: git
+    #   # enable auto-sync for whenever there is new change on helm-chart, argocd will sync the project.
+    #   autosync: true
+
+    # frontend: 
+    #   enabled: true
+    #   helm_chart_git_repo_url: https://github.com/example/frontend_helm_charts.git
+    #   helm_chart_git_repo_target_branch: develop
+    #   helm_chart_git_repo_path: stable/frontend-1
+    #   project: frontends
+    #   deployment_destination_k8s_api_server: https://kubernetes.default.svc
+    #   deployment_destination_namespace: frontends-dev
+    #   annotations:
+    #     # add its docker image repository path
+    #     argocd-image-updater.argoproj.io/image-list: auth-engine=ghcr.io/example/frontends/frontend-1
+    #     # Define which variables in project helm chart that correspond to image name and image tag
+    #     argocd-image-updater.argoproj.io/auth-engine.helm.image-name: image.repository
+    #     argocd-image-updater.argoproj.io/auth-engine.helm.image-tag: image.tag
+    #     # listen only on some specific tags
+    #     # below it listens only on -dev tags
+    #     # ex1: v2.0.0-dev  / ex2: 2.0.1-rc1-dev
+    #     argocd-image-updater.argoproj.io/auth-engine.allow-tags: regexp:^(v[0-9]?[0-9]|[0-9]?[0-9]).[0-9].*-dev$
+    #     # Listen on newly created images 
+    #     argocd-image-updater.argoproj.io/auth-engine.update-strategy: latest 
+    #     # Specify which git branch to update(on helm repo)
+    #     argocd-image-updater.argoproj.io/git-branch: develop
+    #     argocd-image-updater.argoproj.io/write-back-method: git
+    #   # enable auto-sync for whenever there is new change on helm-chart, argocd will sync the project.
+    #   autosync: true
+
+  applications: {}
+
+  # ArgoCD dashboard url; used in place of {{.context.argocdUrl}} in templates
+  server:
+    extraArgs:
+    - --insecure
+    configEnabled: true
+    # disable internal tls to prevent redirect loops
+    insecure: true
+    config:
+      # add an additional local user(image-updater) with apiKey and login capabilities
+      #   apiKey - allows generating API keys
+      #   login - allows to login using UI
+      accounts.image-updater: apiKey
+      accounts.image-updater.enabled: "true"
+      accounts.read-only-user: login
+      accounts.read-only-user.enabled: "true"
+      # accounts.dev: apiKey, login
+      # accounts.dev.enabled: "true"
+      # service.slack: |
+      #   token: xoxb-332982792758-132649
+    # inside argocd-rbac-cm
+    # Give "image-updater" user a get and update access
+    # read-only-user user a read-only access on backends project
+    rbacConfig:
+      policy.default: role:readonly
+      policy.csv: |
+        p, role:image-updater, applications, get, */*, allow
+        p, role:image-updater, applications, update, */*, allow
+        g, image-updater, role:image-updater
+        p, role:read-only-user, applications, get, *, backends/* allow
+        g, read-only-use, role:read-only-use
+
+    service:
+      type: ClusterIP
+    ingress:
+      enabled: false
+      ingressClassName: kong
+      annotations:
+        cert-manager.io/cluster-issuer: letsencrypt
+        # konghq.com/protocols: "https"
+        # konghq.com/https-redirect-status-code: "301"
+        # kubernetes.io/ingress.class: kong
+        # nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+        # nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+      labels: {}
+
+      ## Argo Ingress.
+      ## Hostnames must be provided if Ingress is enabled.
+      ## Secrets must be manually created in the namespace
+      ##
+      hosts:
+        - my-argocd.example.com
+      paths:
+        - /
+      tls: []
+      # https: true
+
+# The below token is used to created env variable: ARGOCD_TOKEN
+#  The token is read by ArgoCD Image Updater to authenticate itself and access the ArgoCD API.
+# More info: https://argocd-image-updater.readthedocs.io/en/v0.2.0/install/start/#configure-api-access-token-secret
+argocdImageUpdaterAccessToken: ZXlKaGJHY2lPaUpJVXpJMU5pSXNJblI1Y0NJNklrcFhWQ0o5LmV5SnFkR2tpT2lKcGJXRm5aUzExY0dSaGRHVnlJaXdpYVdGMElqb3hOalEwTkRjek16YzVMQ0pwYzNNaU9pSmhjbWR2WTJRaUxDSnVZbVlpT2pFMk5EUTBOek16Tnprc0luTjFZaUk2SW1sdFlXZGxMWFZ3WkdGMFpYSWlmdfghjkkmNNdC1XZVczRERzUVlEVjU2OGFHZTNxVzdFU2J1bXkw
+
+argocd-image-updater:
+  enabled: true
+  config:
+  # configure docker image registries
+  # More info: https://argocd-image-updater.readthedocs.io/en/stable/configuration/registries/#supported-registries
+    registries:
+      - name: GitHub Container Registry
+        api_url: https://ghcr.io
+        prefix: ghcr.io
+        ping: yes
+        credentials: pullsecret:argo/github-pull-secret
+
+  

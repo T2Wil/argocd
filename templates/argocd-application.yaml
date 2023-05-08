@@ -1,0 +1,36 @@
+{{- $applications := index .Values "argo-cd" "applications" -}}
+
+{{- range $appName, $app := $applications }}
+{{- if index $app "enabled" }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: {{ $appName }}
+  annotations:
+    {{- range $key, $value := index $app "annotations" }}
+    {{ $key }}: {{ $value }}
+    {{- end }}
+spec:
+  destination:
+    namespace: {{ index $app "deployment_destination_namespace" }}
+    server: {{ index $app "deployment_destination_k8s_api_server" }}
+  project: {{ index $app "project" }}
+  source:
+    {{- if index $app "values_file" }}
+    helm:
+      valueFiles:
+      - {{ index $app "values_file"}}
+    {{- end }}
+    path: {{ index $app "helm_chart_git_repo_path" }}
+    repoURL: {{ index $app "helm_chart_git_repo_url" }}
+    targetRevision: {{ index $app "helm_chart_git_repo_target_branch" }}
+  {{- if index $app "autosync" }}
+  syncPolicy:
+    automated:
+      selfHeal: true
+  {{- else }}
+  syncPolicy: {}
+  {{- end }}
+{{- end }}
+---
+{{- end }}

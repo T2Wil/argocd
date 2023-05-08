@@ -1,0 +1,7 @@
+apiVersion: v1
+data:
+  argocd.token: {{ .Values.argocdImageUpdaterAccessToken }}
+kind: Secret
+metadata:
+  creationTimestamp: null
+  name: argocd-image-updater-secret
